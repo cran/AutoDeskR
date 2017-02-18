@@ -1,15 +1,16 @@
-026f05c9ae3754c1a465461ca15ecf4d *DESCRIPTION
+5fc96e49631bac5e413e576dcb072716 *DESCRIPTION
 e3fc50a88d0a364313df4b21ef20c29e *LICENSE
 ebcc3b002275360f5aedae10e2e8b0e8 *NAMESPACE
+5a2d860642a8c545b74806cf081b447d *NEWS.md
 aea88839f0351ff5fcdf7af083a560f2 *R/authentication.R
 758d4765f039d629b035bd841a691b78 *R/dataManagement.R
 f79c1c127565fc4c041630fe6961e6c8 *R/designAutomation.R
 583ecaae49d031de876558de3ba2438b *R/modelDerivative.R
 a432759520e4949fe948ab8ea6d3cb45 *R/viewer.R
-96120a59163cbed4feebbcc2432ff474 *README.md
+106bd8ce8baf33ff5a81e2cc34c5d027 *README.md
 ebf605e314baf82e5d4e2687bccad341 *build/vignette.rds
-5a69dfd014f4e1a6e3806c5736066415 *inst/doc/AutoDeskR.Rmd
-21112b8b5b33bd56cf2d5e2284791f26 *inst/doc/AutoDeskR.html
+e4d52baa2aa9b22cbd899d8efeb63168 *inst/doc/AutoDeskR.Rmd
+56f027de2ab3cb6e4fe3b0a47b4d8b20 *inst/doc/AutoDeskR.html
 d84026a6a9f198376f89c5fe91d3ed7f *inst/images/aerial.png
 dd031308664437965efaf3a2f6037d3a *inst/images/basicSample.png
 4736239f6cb037f98dcc2f789b783791 *inst/samples/aerial.dwg
@@ -33,4 +34,4 @@ a15f0cc9e4d53b78b871f15dcc9fcfd2 *man/translateSvf.Rd
 f93884601c7b30cb859ca9d77996919a *man/uploadFile.Rd
 f959434dc0996065746e5361daf01500 *man/viewer3D.Rd
 538bdd9d772cbf492dcc1f648806e6c3 *man/viewerUI.Rd
-5a69dfd014f4e1a6e3806c5736066415 *vignettes/AutoDeskR.Rmd
+e4d52baa2aa9b22cbd899d8efeb63168 *vignettes/AutoDeskR.Rmd
