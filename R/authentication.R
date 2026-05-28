@@ -1,7 +1,7 @@
 #' Get a 2-Legged Token for Authentication.
 #'
-#' Get a 2-legged token for OAuth-based authentication to the AutoDesk Forge
-#' Platform.
+#' Get a 2-legged token for OAuth-based authentication to the AutoDesk
+#' Platform Services (APS).
 #' @param id A string. Client ID for the app generated from the AutoDesk Dev
 #'   Portal.
 #' @param secret A string. Client Secret for the app generated from the AutoDesk
@@ -12,16 +12,19 @@
 #'   \code{bucket:read}, \code{bucket:update}, \code{bucket:delete},
 #'   \code{code:all}, \code{account:read}, \code{account:write}, or a
 #'   combination of these.
-#' @return An object containing the \code{access_token}, \code{code_type}, and
-#'   \code{expires_in} milliseconds.
+#' @return An \code{aps_token} object containing the \code{access_token},
+#'   \code{token_type}, \code{expires_in}, and \code{expires_at}. The token can
+#'   be passed directly to other AutoDeskR functions. Use
+#'   \code{\link{is_expired}} to check whether the token needs refreshing.
+#'   Legacy access via \code{resp$content$access_token} continues to work.
 #' @examples
 #' \dontrun{
-#' # Get a 2-legged token with the "data:read" and "data:write" scopes
-#' resp <- getToken(id = Sys.getenv("client_id"), secret = Sys.getenv("client_secret"),
-#'            scope = "data:write data:read")
-#' myToken <- resp$content$access_token
+#' tok <- getToken(id = Sys.getenv("client_id"), secret = Sys.getenv("client_secret"),
+#'          scope = "data:write data:read")
+#' myToken <- tok$access_token
+#' is_expired(tok)
 #' }
-#' @import httr
+#' @import httr2
 #' @import jsonlite
 #' @export
 getToken <- function(id = NULL, secret = NULL, scope = "data:write data:read") {
@@ -29,29 +32,17 @@ getToken <- function(id = NULL, secret = NULL, scope = "data:write data:read") {
   if (is.null(secret)) stop("secret is null")
   if (is.null(scope)) stop("scope is null")
 
-  url <- 'https://developer.api.autodesk.com/authentication/v1/authenticate'
-  dat = list(client_id = id,
-             client_secret = secret,
-             grant_type = "client_credentials",
-             scope = scope)
-  resp <- POST(url, user_agent("https://github.com/paulgovan/AutoDeskR"),
-               body = dat, encode = "form")
+  url <- 'https://developer.api.autodesk.com/authentication/v2/token'
 
-  if (http_type(resp) != "application/json") {
-    stop("AutoDesk API did not return json", call. = FALSE)
-  }
+  resp <- aps_request(url) |>
+    req_body_form(
+      client_id     = id,
+      client_secret = secret,
+      grant_type    = "client_credentials",
+      scope         = scope
+    ) |>
+    aps_perform()
 
-  warn_for_status(resp)
-
-  parsed <- jsonlite::fromJSON(content(resp, "text"), simplifyVector = FALSE)
-
-  structure(
-    list(
-      content = parsed,
-      path = url,
-      response = resp
-    ),
-    class = "getToken"
-  )
-
+  parsed <- resp_body_json(resp, simplifyVector = FALSE)
+  new_aps_token(parsed, url, resp)
 }

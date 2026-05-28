@@ -4,8 +4,8 @@
 #' @param urn A string. Source URN (objectId) for the file. Note the URN must be
 #'   Base64 encoded. To encode the URN, see, for example, the
 #'   \code{jsonlite::base64_enc} function.
-#' @param token A string. Token generated with \code{\link{getToken}} function
-#'   with \code{data:read} and \code{data:write} scopes.
+#' @param token A string or \code{aps_token} object with \code{data:read}
+#'   and \code{data:write} scopes.
 #' @return An object containing the \code{result}, \code{urn}, and additional
 #'   activity information.
 #' @examples
@@ -14,52 +14,95 @@
 #' myEncodedUrn <- jsonlite::base64_enc(myUrn)
 #' resp <- translateSvf(urn = myEncodedUrn, token = myToken)
 #' }
-#' @import httr
+#' @import httr2
 #' @import jsonlite
 #' @export
 translateSvf <- function(urn = NULL, token = NULL) {
   if (is.null(urn)) stop("urn is null")
   if (is.null(token)) stop("token is null")
+
+  token <- .resolve_token(token)
+
   url <- 'https://developer.api.autodesk.com/modelderivative/v2/designdata/job'
   dat <- list(
-    input = list(
-      urn = urn
-    ),
+    input = list(urn = urn),
     output = list(
       formats = list(
-        structure(
-          list(
-            type = "svf",
-            views =
-              list(
-                "2d",
-                "3d"
-              )
-          )
-        )
+        structure(list(type = "svf", views = list("2d", "3d")))
       )
     )
   )
-  resp <- POST(url, add_headers(Authorization = paste0("Bearer ", token)),
-               body = dat, encode = "json")
 
-  if (http_type(resp) != "application/json") {
-    stop("AutoDesk API did not return json", call. = FALSE)
-  }
+  resp <- aps_request(url, token) |>
+    req_body_json(dat) |>
+    aps_perform()
 
-  warn_for_status(resp)
-
-  parsed <- jsonlite::fromJSON(content(resp, "text"), simplifyVector = FALSE)
+  parsed <- resp_body_json(resp, simplifyVector = FALSE)
 
   structure(
     list(
-      content = parsed,
-      path = url,
+      content  = parsed,
+      path     = url,
       response = resp
     ),
     class = "translateSvf"
   )
+}
 
+#' Translate a File into SVF2 Format.
+#'
+#' Translate an uploaded file into SVF2 format using the Model Derivative API.
+#' SVF2 is the next-generation viewer format: approximately 30% smaller than
+#' SVF and faster to load in the Autodesk Viewer. Use it in place of
+#' \code{\link{translateSvf}} for new projects.
+#' @param urn A string. Source URN (objectId) for the file. Note the URN must be
+#'   Base64 encoded. To encode the URN, see, for example, the
+#'   \code{jsonlite::base64_enc} function.
+#' @param token A string or \code{aps_token} object with \code{data:read}
+#'   and \code{data:write} scopes.
+#' @param views A character vector. Views to generate. Defaults to
+#'   \code{c("2d", "3d")}.
+#' @return An object containing the \code{result}, \code{urn}, and additional
+#'   activity information.
+#' @examples
+#' \dontrun{
+#' # Translate the "aerial.dwg" file into SVF2 format
+#' myEncodedUrn <- jsonlite::base64_enc(myUrn)
+#' resp <- translateSvf2(urn = myEncodedUrn, token = myToken)
+#' }
+#' @import httr2
+#' @import jsonlite
+#' @export
+translateSvf2 <- function(urn = NULL, token = NULL, views = c("2d", "3d")) {
+  if (is.null(urn)) stop("urn is null")
+  if (is.null(token)) stop("token is null")
+
+  token <- .resolve_token(token)
+
+  url <- 'https://developer.api.autodesk.com/modelderivative/v2/designdata/job'
+  dat <- list(
+    input = list(urn = urn),
+    output = list(
+      formats = list(
+        structure(list(type = "svf2", views = as.list(views)))
+      )
+    )
+  )
+
+  resp <- aps_request(url, token) |>
+    req_body_json(dat) |>
+    aps_perform()
+
+  parsed <- resp_body_json(resp, simplifyVector = FALSE)
+
+  structure(
+    list(
+      content  = parsed,
+      path     = url,
+      response = resp
+    ),
+    class = "translateSvf2"
+  )
 }
 
 #' Check the Status of a Translated File.
@@ -68,42 +111,38 @@ translateSvf <- function(urn = NULL, token = NULL) {
 #' @param urn A string. Source URN (objectId) for the file. Note the URN must be
 #'   Base64 encoded. To encode the URN, see, for example, the
 #'   \code{jsonlite::base64_enc} function.
-#' @param token A string. Token generated with \code{\link{getToken}} function
-#'   with \code{data:read} and \code{data:write} scopes.
+#' @param token A string or \code{aps_token} object with \code{data:read}
+#'   and \code{data:write} scopes.
 #' @examples
 #' \dontrun{
 #' # Check the status of the translated "aerial.dwg" svf file
 #' resp <- checkFile(urn = myEncodedUrn, token = myToken)
 #' resp
 #' }
-#' @import httr
+#' @import httr2
 #' @import jsonlite
 #' @export
 checkFile <- function(urn = NULL, token = NULL) {
   if (is.null(urn)) stop("urn is null")
   if (is.null(token)) stop("token is null")
 
-  url <- paste0('https://developer.api.autodesk.com/modelderivative/v2/designdata/',
-                urn, '/manifest')
-  resp <- GET(url, add_headers(Authorization = paste0("Bearer ", token)))
+  token <- .resolve_token(token)
 
-  if (http_type(resp) != "application/json") {
-    stop("AutoDesk API did not return json", call. = FALSE)
-  }
+  url <- paste0('https://developer.api.autodesk.com/modelderivative/v2/designdata/', urn, '/manifest')
 
-  warn_for_status(resp)
+  resp <- aps_request(url, token) |>
+    aps_perform()
 
-  parsed <- jsonlite::fromJSON(content(resp, "text"), simplifyVector = FALSE)
+  parsed <- resp_body_json(resp, simplifyVector = FALSE)
 
   structure(
     list(
-      content = parsed,
-      path = url,
+      content  = parsed,
+      path     = url,
       response = resp
     ),
     class = "checkFile"
   )
-
 }
 
 #' Get the Metadata for a File.
@@ -112,8 +151,8 @@ checkFile <- function(urn = NULL, token = NULL) {
 #' @param urn A string. Source URN (objectId) for the file. Note the URN must be
 #'   Base64 encoded. To encode the URN, see, for example, the
 #'   \code{jsonlite::base64_enc} function.
-#' @param token A string. Token generated with \code{\link{getToken}} function
-#'   with \code{data:read} and \code{data:write} scopes.
+#' @param token A string or \code{aps_token} object with \code{data:read}
+#'   and \code{data:write} scopes.
 #' @return An object containing the \code{type}, \code{name}, and \code{guid} of
 #'   the file.
 #' @examples
@@ -122,33 +161,30 @@ checkFile <- function(urn = NULL, token = NULL) {
 #' resp <- getMetadata(urn <- myEncodedUrn, token = myToken)
 #' myGuid <- resp$content$data$metadata[[1]]$guid
 #' }
-#' @import httr
+#' @import httr2
 #' @import jsonlite
 #' @export
 getMetadata <- function(urn = NULL, token = NULL) {
   if (is.null(urn)) stop("urn is null")
   if (is.null(token)) stop("token is null")
 
+  token <- .resolve_token(token)
+
   url <- paste0('https://developer.api.autodesk.com/modelderivative/v2/designdata/', urn, '/metadata')
-  resp <- GET(url, add_headers(Authorization = paste0("Bearer ", token)))
 
-  if (http_type(resp) != "application/json") {
-    stop("AutoDesk API did not return json", call. = FALSE)
-  }
+  resp <- aps_request(url, token) |>
+    aps_perform()
 
-  warn_for_status(resp)
-
-  parsed <- jsonlite::fromJSON(content(resp, "text"), simplifyVector = FALSE)
+  parsed <- resp_body_json(resp, simplifyVector = FALSE)
 
   structure(
     list(
-      content = parsed,
-      path = url,
+      content  = parsed,
+      path     = url,
       response = resp
     ),
     class = "getMetadata"
   )
-
 }
 
 #' Get the Geometry Data for a File.
@@ -159,15 +195,15 @@ getMetadata <- function(urn = NULL, token = NULL) {
 #' @param urn A string. Source URN (objectId) for the file. Note the URN must be
 #'   Base64 encoded. To encode the URN, see, for example, the
 #'   \code{jsonlite::base64_enc} function.
-#' @param token A string. Token generated with \code{\link{getToken}} function
-#'   with \code{data:read} and \code{data:write} scopes.
+#' @param token A string or \code{aps_token} object with \code{data:read}
+#'   and \code{data:write} scopes.
 #' @return An object containing the geometry data for the selected file.
 #' @examples
 #' \dontrun{
 #' # Get the geometry data for the "aerial.dwg" svf file
-#' resp <- getData(guid <- myGuid, urn <- myEncodedUrn, token = myToken)
+#' resp <- getData(guid = myGuid, urn = myEncodedUrn, token = myToken)
 #' }
-#' @import httr
+#' @import httr2
 #' @import jsonlite
 #' @export
 getData <- function(guid = NULL, urn = NULL, token = NULL) {
@@ -175,27 +211,23 @@ getData <- function(guid = NULL, urn = NULL, token = NULL) {
   if (is.null(urn)) stop("urn is null")
   if (is.null(token)) stop("token is null")
 
+  token <- .resolve_token(token)
+
   url <- paste0('https://developer.api.autodesk.com/modelderivative/v2/designdata/', urn, '/metadata/', guid, '/properties')
 
-  resp <- GET(url, add_headers(Authorization = paste0("Bearer ", token)))
+  resp <- aps_request(url, token) |>
+    aps_perform()
 
-  if (http_type(resp) != "application/json") {
-    stop("AutoDesk API did not return json", call. = FALSE)
-  }
-
-  warn_for_status(resp)
-
-  parsed <- jsonlite::fromJSON(content(resp, "text"), simplifyVector = FALSE)
+  parsed <- resp_body_json(resp, simplifyVector = FALSE)
 
   structure(
     list(
-      content = parsed,
-      path = url,
+      content  = parsed,
+      path     = url,
       response = resp
     ),
     class = "getData"
   )
-
 }
 
 #' Get the Object Tree of a File.
@@ -206,43 +238,40 @@ getData <- function(guid = NULL, urn = NULL, token = NULL) {
 #' @param urn A string. Source URN (objectId) for the file. Note the URN must be
 #'   Base64 encoded. To encode the URN, see, for example, the
 #'   \code{jsonlite::base64_enc} function.
-#' @param token A string. Token generated with \code{\link{getToken}} function
-#'   with \code{data:read} and \code{data:write} scopes.
-#' @return An object containing the object tree for the selected file. the file.
+#' @param token A string or \code{aps_token} object with \code{data:read}
+#'   and \code{data:write} scopes.
+#' @return An object containing the object tree for the selected file.
 #' @examples
 #' \dontrun{
 #' # Get the object tree for the "aerial.dwg" svf file
-#' resp <- getObjectTree(guid <- myGuid, urn <- myEncodedUrn, token = myToken)
+#' resp <- getObjectTree(guid = myGuid, urn = myEncodedUrn, token = myToken)
 #' resp
 #' }
-#' @import httr
+#' @import httr2
 #' @import jsonlite
 #' @export
-getObjectTree <- function(guid = NULL, urn = NULL, token = NULL){
+getObjectTree <- function(guid = NULL, urn = NULL, token = NULL) {
   if (is.null(guid)) stop("guid is null")
   if (is.null(urn)) stop("urn is null")
   if (is.null(token)) stop("token is null")
+
+  token <- .resolve_token(token)
+
   url <- paste0('https://developer.api.autodesk.com/modelderivative/v2/designdata/', urn, '/metadata/', guid)
 
-  resp <- GET(url, add_headers(Authorization = paste0("Bearer ", token)))
+  resp <- aps_request(url, token) |>
+    aps_perform()
 
-  if (http_type(resp) != "application/json") {
-    stop("AutoDesk API did not return json", call. = FALSE)
-  }
-
-  warn_for_status(resp)
-
-  parsed <- jsonlite::fromJSON(content(resp, "text"), simplifyVector = FALSE)
+  parsed <- resp_body_json(resp, simplifyVector = FALSE)
 
   structure(
     list(
-      content = parsed,
-      path = url,
+      content  = parsed,
+      path     = url,
       response = resp
     ),
     class = "getObjectTree"
   )
-
 }
 
 #' Translate a File into OBJ Format.
@@ -251,57 +280,90 @@ getObjectTree <- function(guid = NULL, urn = NULL, token = NULL){
 #' @param urn A string. Source URN (objectId) for the file. Note the URN must be
 #'   Base64 encoded. To encode the URN, see, for example, the
 #'   \code{jsonlite::base64_enc} function.
-#' @param token A string. Token generated with \code{\link{getToken}} function
-#'   with \code{data:read} and \code{data:write} scopes.
+#' @param token A string or \code{aps_token} object with \code{data:read}
+#'   and \code{data:write} scopes.
 #' @return An object containing the \code{result}, \code{urn}, and additional
 #'   activity information.
 #' @examples
 #' \dontrun{
-#' # Translate the "aerial.dwg" file into a obj file
-#' resp <- translateObj(urn <- myEncodedUrn, token = myToken)
+#' # Translate the "aerial.dwg" file into an obj file
+#' resp <- translateObj(urn = myEncodedUrn, token = myToken)
 #' }
-#' @import httr
+#' @import httr2
 #' @import jsonlite
 #' @export
 translateObj <- function(urn = NULL, token = NULL) {
   if (is.null(urn)) stop("urn is null")
   if (is.null(token)) stop("token is null")
 
+  token <- .resolve_token(token)
+
   url <- 'https://developer.api.autodesk.com/modelderivative/v2/designdata/job'
   dat <- list(
-    input = list(
-      urn = urn
-    ),
-    output = list(
-      formats = list(
-        structure(
-          list(
-            type = "obj"
-          )
-        )
-      )
-    )
+    input  = list(urn = urn),
+    output = list(formats = list(structure(list(type = "obj"))))
   )
-  resp <- POST(url, add_headers(Authorization = paste0("Bearer ", token)),
-               body = dat, encode = "json")
 
-  if (http_type(resp) != "application/json") {
-    stop("AutoDesk API did not return json", call. = FALSE)
-  }
+  resp <- aps_request(url, token) |>
+    req_body_json(dat) |>
+    aps_perform()
 
-  warn_for_status(resp)
-
-  parsed <- jsonlite::fromJSON(content(resp, "text"), simplifyVector = FALSE)
+  parsed <- resp_body_json(resp, simplifyVector = FALSE)
 
   structure(
     list(
-      content = parsed,
-      path = url,
+      content  = parsed,
+      path     = url,
       response = resp
     ),
     class = "translateObj"
   )
+}
 
+#' Translate a File into STL Format.
+#'
+#' Translate an uploaded file into STL format using the Model Derivative API.
+#' @param urn A string. Source URN (objectId) for the file. Note the URN must be
+#'   Base64 encoded. To encode the URN, see, for example, the
+#'   \code{jsonlite::base64_enc} function.
+#' @param token A string or \code{aps_token} object with \code{data:read}
+#'   and \code{data:write} scopes.
+#' @return An object containing the \code{result}, \code{urn}, and additional
+#'   activity information.
+#' @examples
+#' \dontrun{
+#' # Translate the "aerial.dwg" file into an stl file
+#' resp <- translateStl(urn = myEncodedUrn, token = myToken)
+#' }
+#' @import httr2
+#' @import jsonlite
+#' @export
+translateStl <- function(urn = NULL, token = NULL) {
+  if (is.null(urn)) stop("urn is null")
+  if (is.null(token)) stop("token is null")
+
+  token <- .resolve_token(token)
+
+  url <- 'https://developer.api.autodesk.com/modelderivative/v2/designdata/job'
+  dat <- list(
+    input  = list(urn = urn),
+    output = list(formats = list(structure(list(type = "stl"))))
+  )
+
+  resp <- aps_request(url, token) |>
+    req_body_json(dat) |>
+    aps_perform()
+
+  parsed <- resp_body_json(resp, simplifyVector = FALSE)
+
+  structure(
+    list(
+      content  = parsed,
+      path     = url,
+      response = resp
+    ),
+    class = "translateStl"
+  )
 }
 
 #' Get the Output URN for a File.
@@ -310,87 +372,99 @@ translateObj <- function(urn = NULL, token = NULL) {
 #' @param urn A string. Source URN (objectId) for the file. Note the URN must be
 #'   Base64 encoded. To encode the URN, see, for example, the
 #'   \code{jsonlite::base64_enc} function.
-#' @param token A string. Token generated with \code{\link{getToken}} function
-#'   with \code{data:read} and \code{data:write} scopes.
+#' @param token A string or \code{aps_token} object with \code{data:read}
+#'   and \code{data:write} scopes.
 #' @return An object containing the \code{result}, \code{urn}, and additional
 #'   activity information.
 #' @examples
 #' \dontrun{
 #' # Get the output urn for the "aerial.dwg" obj file
-#' resp <- getOutputUrn(urn <- myUrn, token = Sys.getenv("token"))
+#' resp <- getOutputUrn(urn = myUrn, token = Sys.getenv("token"))
 #' resp
 #' }
-#' @import httr
+#' @import httr2
 #' @import jsonlite
 #' @export
 getOutputUrn <- function(urn, token) {
   if (is.null(urn)) stop("urn is null")
   if (is.null(token)) stop("token is null")
 
-  url <- paste0('https://developer.api.autodesk.com/modelderivative/v2/designdata/',
-                urn, '/manifest')
-  resp <- GET(url, add_headers(Authorization = paste0("Bearer ", token)))
+  token <- .resolve_token(token)
 
-  if (http_type(resp) != "application/json") {
-    stop("AutoDesk API did not return json", call. = FALSE)
-  }
+  url <- paste0('https://developer.api.autodesk.com/modelderivative/v2/designdata/', urn, '/manifest')
 
-  warn_for_status(resp)
+  resp <- aps_request(url, token) |>
+    aps_perform()
 
-  parsed <- jsonlite::fromJSON(content(resp, "text"), simplifyVector = FALSE)
+  parsed <- resp_body_json(resp, simplifyVector = FALSE)
 
   structure(
     list(
-      content = parsed,
-      path = url,
+      content  = parsed,
+      path     = url,
       response = resp
     ),
     class = "getOutputUrn"
   )
-
 }
 
 #' Download a file locally.
 #'
-#' Download a file from the Forge Platform using the Model Derivative API.
+#' Download a file from the AutoDesk Platform Services using the Model Derivative API.
 #' @param urn A string. Source URN (objectId) for the file. Note the URN must be
 #'   Base64 encoded. To encode the URN, see, for example, the
 #'   \code{jsonlite::base64_enc} function.
-#' @param output_urn A string. Output_urn retrieved via
-#'   \code{\link{getOutputUrn}}
-#' @param token A string. Token generated with \code{\link{getToken}} function
-#'   with \code{data:read} and \code{data:write} scopes.
-#' @return An object containing the \code{result}, \code{urn}, and additional
-#'   activity information.
+#' @param output_urn A string. Output URN retrieved via \code{\link{getOutputUrn}}.
+#' @param token A string or \code{aps_token} object with \code{data:read}
+#'   and \code{data:write} scopes.
+#' @param destfile A string. Local file path to save binary responses (e.g.
+#'   downloaded geometry files). When \code{NULL} and the response is not JSON,
+#'   a warning is issued and the raw bytes are returned.
+#' @return An object containing either parsed JSON content or, for binary
+#'   responses, the path to the saved file.
 #' @examples
 #' \dontrun{
-#' # Download the "aerial.dwg" png file
+#' # Download the "aerial.dwg" obj file
 #' myEncodedOutputUrn <- jsonlite::base64_enc(myOutputUrn)
-#' resp <- downloadFile(urn <- myEncodedUrn, output_urn <- myEncodedOutputUrn, token = myToken)
+#' resp <- downloadFile(urn <- myEncodedUrn, output_urn <- myEncodedOutputUrn,
+#'            token = myToken, destfile = "aerial.obj")
 #' }
-#' @import httr
+#' @import httr2
 #' @import jsonlite
 #' @export
-downloadFile <- function(urn = NULL, output_urn = NULL, token = NULL) {
+downloadFile <- function(urn = NULL, output_urn = NULL, token = NULL, destfile = NULL) {
   if (is.null(urn)) stop("urn is null")
   if (is.null(output_urn)) stop("output_urn is null")
   if (is.null(token)) stop("token is null")
 
+  token <- .resolve_token(token)
+
   url <- paste0('https://developer.api.autodesk.com/modelderivative/v2/designdata/', urn, '/manifest/', output_urn)
 
-  resp <- GET(url, add_headers(Authorization = paste0("Bearer ", token)))
+  resp <- aps_request(url, token) |>
+    aps_perform()
 
-  warn_for_status(resp)
-
-  parsed <- jsonlite::fromJSON(content(resp, "text"), simplifyVector = FALSE)
+  ct <- resp_content_type(resp)
+  if (grepl("application/json", ct, fixed = TRUE)) {
+    parsed <- resp_body_json(resp, simplifyVector = FALSE)
+    content_val <- parsed
+  } else {
+    raw_bytes <- resp_body_raw(resp)
+    if (!is.null(destfile)) {
+      writeBin(raw_bytes, destfile)
+      content_val <- list(destfile = destfile)
+    } else {
+      warning("Response is binary but no destfile specified; returning raw bytes.")
+      content_val <- list(raw = raw_bytes)
+    }
+  }
 
   structure(
     list(
-      content = parsed,
-      path = url,
+      content  = content_val,
+      path     = url,
       response = resp
     ),
     class = "downloadFile"
   )
-
 }

@@ -14,11 +14,11 @@ function.}
 Base64 encoded. To encode the URN, see, for example, the
 \code{jsonlite::base64_enc} function.}
 
-\item{token}{A string. Token generated with \code{\link{getToken}} function
-with \code{data:read} and \code{data:write} scopes.}
+\item{token}{A string or \code{aps_token} object with \code{data:read}
+and \code{data:write} scopes.}
 }
 \value{
-An object containing the object tree for the selected file. the file.
+An object containing the object tree for the selected file.
 }
 \description{
 Get the object tree of an uploaded file using the Model Derivative API.
@@ -26,7 +26,7 @@ Get the object tree of an uploaded file using the Model Derivative API.
 \examples{
 \dontrun{
 # Get the object tree for the "aerial.dwg" svf file
-resp <- getObjectTree(guid <- myGuid, urn <- myEncodedUrn, token = myToken)
+resp <- getObjectTree(guid = myGuid, urn = myEncodedUrn, token = myToken)
 resp
 }
 }

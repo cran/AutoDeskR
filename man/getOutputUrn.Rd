@@ -11,8 +11,8 @@ getOutputUrn(urn, token)
 Base64 encoded. To encode the URN, see, for example, the
 \code{jsonlite::base64_enc} function.}
 
-\item{token}{A string. Token generated with \code{\link{getToken}} function
-with \code{data:read} and \code{data:write} scopes.}
+\item{token}{A string or \code{aps_token} object with \code{data:read}
+and \code{data:write} scopes.}
 }
 \value{
 An object containing the \code{result}, \code{urn}, and additional
@@ -24,7 +24,7 @@ Get the output urn of a translated file using the Model Derivative API.
 \examples{
 \dontrun{
 # Get the output urn for the "aerial.dwg" obj file
-resp <- getOutputUrn(urn <- myUrn, token = Sys.getenv("token"))
+resp <- getOutputUrn(urn = myUrn, token = Sys.getenv("token"))
 resp
 }
 }

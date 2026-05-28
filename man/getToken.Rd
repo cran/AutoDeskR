@@ -21,18 +21,21 @@ Dev Portal.}
 combination of these.}
 }
 \value{
-An object containing the \code{access_token}, \code{code_type}, and
-  \code{expires_in} milliseconds.
+An \code{aps_token} object containing the \code{access_token},
+  \code{token_type}, \code{expires_in}, and \code{expires_at}. The token can
+  be passed directly to other AutoDeskR functions. Use
+  \code{\link{is_expired}} to check whether the token needs refreshing.
+  Legacy access via \code{resp$content$access_token} continues to work.
 }
 \description{
-Get a 2-legged token for OAuth-based authentication to the AutoDesk Forge
-Platform.
+Get a 2-legged token for OAuth-based authentication to the AutoDesk
+Platform Services (APS).
 }
 \examples{
 \dontrun{
-# Get a 2-legged token with the "data:read" and "data:write" scopes
-resp <- getToken(id = Sys.getenv("client_id"), secret = Sys.getenv("client_secret"),
-           scope = "data:write data:read")
-myToken <- resp$content$access_token
+tok <- getToken(id = Sys.getenv("client_id"), secret = Sys.getenv("client_secret"),
+         scope = "data:write data:read")
+myToken <- tok$access_token
+is_expired(tok)
 }
 }
